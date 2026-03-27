@@ -8,6 +8,8 @@ import hosenNavy from './assets/zurrue-hosen-navy-white.png';
 import hosenGrayBlack from './assets/zurrue-hosen-gray-black.png';
 import hosenBlackWhite from './assets/zurrue-hosen-black-white.png';
 
+import { PasswordGate } from './components/PasswordGate';
+
 const COLORS = [
   { id: 'navy', name: 'Navy-Weiß', image: hosenNavy, style: { background: 'radial-gradient(circle, #ffffff 25%, #1e293b 26%)' } },
   { id: 'grau-schwarz', name: 'Grau-Schwarz', image: hosenGrayBlack, style: { background: 'radial-gradient(circle, #000000 25%, #9ca3af 26%)' } },
@@ -19,6 +21,14 @@ const COLORS = [
 const SIZES = ['S', 'M', 'L', 'XL'];
 
 export default function App() {
+  return (
+    <PasswordGate>
+      <MainApp />
+    </PasswordGate>
+  );
+}
+
+function MainApp() {
   const [selectedColor, setSelectedColor] = useState(COLORS[4]);
   const [selectedSize, setSelectedSize] = useState('M');
   const [isOrdering, setIsOrdering] = useState(false);

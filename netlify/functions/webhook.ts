@@ -2,16 +2,19 @@ import { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
 import { Pool } from 'pg';
 
-// Stripe Initialisierung
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-    apiVersion: '2026-03-25.dahlia',
-});
-
-// Wir initialisieren den Pool jetzt im Handler oder prüfen ihn dort,
-// um Abstürze bei fehlenden Env-Vars zu vermeiden.
-
 export const handler: Handler = async (event, context) => {
     console.log('--- Webhook Started ---');
+
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
+        console.error('STRIPE_SECRET_KEY missing');
+        return { statusCode: 500, body: 'Server Error: Missing Stripe Key' };
+    }
+
+    const stripe = new Stripe(stripeKey, {
+        apiVersion: '2026-03-25.dahlia',
+    });
+
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }

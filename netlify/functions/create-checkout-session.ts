@@ -1,12 +1,18 @@
 import { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-    apiVersion: '2026-03-25.dahlia',
-});
-
 export const handler: Handler = async (event, context) => {
     console.log('--- Checkout Function Started ---');
+
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) {
+        console.error('STRIPE_SECRET_KEY is missing in environment variables');
+        return { statusCode: 500, body: JSON.stringify({ error: 'Server Config Error: Stripe key missing' }) };
+    }
+
+    const stripe = new Stripe(stripeKey, {
+        apiVersion: '2026-03-25.dahlia',
+    });
 
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };

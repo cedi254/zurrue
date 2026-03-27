@@ -2,15 +2,16 @@ import { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
 import { Pool } from 'pg';
 
+// Stripe Initialisierung
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
     apiVersion: '2026-03-25.dahlia',
 });
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-});
+// Wir initialisieren den Pool jetzt im Handler oder prüfen ihn dort,
+// um Abstürze bei fehlenden Env-Vars zu vermeiden.
 
 export const handler: Handler = async (event, context) => {
+    console.log('--- Webhook Started ---');
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
@@ -19,6 +20,7 @@ export const handler: Handler = async (event, context) => {
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     if (!sig || !endpointSecret || !event.body) {
+        console.error('Webhook missing signature or secret');
         return { statusCode: 400, body: 'Webhook Error: Missing signature or secret' };
     }
 
@@ -26,11 +28,13 @@ export const handler: Handler = async (event, context) => {
     try {
         stripeEvent = stripe.webhooks.constructEvent(event.body, sig, endpointSecret);
     } catch (err: any) {
+        console.error('Webhook signature failed:', err.message);
         return { statusCode: 400, body: `Webhook Error: ${err.message}` };
     }
 
     if (stripeEvent.type === 'checkout.session.completed') {
         const session = stripeEvent.data.object as Stripe.Checkout.Session;
+        console.log('Processing completed session:', session.id);
 
         const size = session.metadata?.size || 'Unbekannt';
         const color = session.metadata?.color || 'Unbekannt';
@@ -51,11 +55,13 @@ export const handler: Handler = async (event, context) => {
         const items = { size, color };
 
         try {
+            console.log('Saving to Neon DB...');
+            const pool = new Pool({ connectionString: process.env.DATABASE_URL });
             const query = `
-        INSERT INTO orders (stripe_session_id, customer_name, customer_email, shipping_address, items, total_amount, payment_status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (stripe_session_id) DO NOTHING;
-      `;
+                INSERT INTO orders (stripe_session_id, customer_name, customer_email, shipping_address, items, total_amount, payment_status)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                ON CONFLICT (stripe_session_id) DO NOTHING;
+            `;
             await pool.query(query, [
                 session.id,
                 customerName,
@@ -65,9 +71,11 @@ export const handler: Handler = async (event, context) => {
                 totalAmount,
                 paymentStatus
             ]);
-        } catch (dbErr) {
-            console.error('Error saving to DB', dbErr);
-            return { statusCode: 500, body: 'Database Error' };
+            await pool.end();
+            console.log('Database save successful');
+        } catch (dbErr: any) {
+            console.error('Neon DB Error:', dbErr.message);
+            return { statusCode: 500, body: `Database Error: ${dbErr.message}` };
         }
     }
 

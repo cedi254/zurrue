@@ -20,7 +20,97 @@ const COLORS = [
 
 const SIZES = ['S', 'M', 'L', 'XL'];
 
+function AdminDashboard() {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const PORT = import.meta.env.PROD ? '' : ':3001';
+        const API_URL = `${window.location.protocol}//${window.location.hostname}${PORT}/api/orders`;
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        setOrders(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-neutral-50 p-8 font-sans">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8">Admin Dashboard - Bestellungen</h1>
+        {loading ? (
+          <p className="text-neutral-500">Lade Bestellungen...</p>
+        ) : (
+          <div className="bg-white rounded-xl shadow overflow-hidden">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-neutral-100 border-b border-neutral-200">
+                  <th className="p-4 font-semibold text-sm">Datum</th>
+                  <th className="p-4 font-semibold text-sm">Kunde</th>
+                  <th className="p-4 font-semibold text-sm">Bestellung</th>
+                  <th className="p-4 font-semibold text-sm">Adresse</th>
+                  <th className="p-4 font-semibold text-sm">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order, i) => (
+                  <tr key={order.id || i} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+                    <td className="p-4 text-sm whitespace-nowrap">
+                      {new Date(order.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="p-4 text-sm">
+                      <div className="font-medium text-neutral-900">{order.customer_name}</div>
+                      <div className="text-neutral-500">{order.customer_email}</div>
+                    </td>
+                    <td className="p-4 text-sm">
+                      <span className="bg-neutral-100 px-2 py-1 rounded text-xs font-medium border border-neutral-200">
+                        {order.items?.size} - {order.items?.color}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sm text-neutral-600">
+                      {order.shipping_address?.line1}<br />
+                      {order.shipping_address?.postal_code} {order.shipping_address?.city}
+                    </td>
+                    <td className="p-4 text-sm">
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {order.payment_status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {orders.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-neutral-500">
+                      Keine Bestellungen gefunden.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const path = window.location.pathname;
+  if (path === '/admin') {
+    return (
+      <PasswordGate>
+        <AdminDashboard />
+      </PasswordGate>
+    );
+  }
+
   return (
     <PasswordGate>
       <MainApp />
@@ -49,15 +139,37 @@ function MainApp() {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handlePreOrder = (e: React.FormEvent) => {
+  const handlePreOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsOrdering(true);
 
-    // Stripe Payment Link nutzen
-    const paymentLink = import.meta.env.VITE_STRIPE_PAYMENT_LINK || 'https://buy.stripe.com/test_cNi6oIdSMeIg2df1ycds400';
+    try {
+      const PORT = import.meta.env.PROD ? '' : ':3001';
+      const API_URL = `${window.location.protocol}//${window.location.hostname}${PORT}/api/create-checkout-session`;
 
-    // Hier leiten wir den Nutzer direkt auf die Stripe Seite weiter
-    window.location.href = paymentLink;
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          size: selectedSize,
+          colorName: selectedColor.name,
+          colorId: selectedColor.id
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Fehler beim Erstellen der Checkout-Session');
+      }
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error('Checkout Error:', error);
+      alert('Es gab ein Problem bei der Weiterleitung zu Stripe. Bitte versuche es noch einmal.');
+      setIsOrdering(false);
+    }
   };
 
   return (

@@ -155,17 +155,18 @@ function MainApp() {
         })
       });
 
+      const data = await response.json().catch(() => null);
+
       if (!response.ok) {
-        throw new Error('Fehler beim Erstellen der Checkout-Session');
+        throw new Error(data?.error || `Server Fehler: ${response.status}`);
       }
 
-      const data = await response.json();
-      if (data.url) {
+      if (data?.url) {
         window.location.href = data.url;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Checkout Error:', error);
-      alert('Es gab ein Problem bei der Weiterleitung zu Stripe. Bitte versuche es noch einmal.');
+      alert(`Verbindungsfehler: ${error.message}\n\nHinweis: \n1) Läuft die Netlify-Seite / hast du hochgeladen?\n2) Hast du "netlify dev" lokal benutzt anstatt "npm run dev"?\n3) Hat dein Stripe Account "Twint" aktiviert?`);
       setIsOrdering(false);
     }
   };

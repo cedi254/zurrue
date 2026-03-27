@@ -27,8 +27,7 @@ function AdminDashboard() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const PORT = import.meta.env.PROD ? '' : ':3001';
-        const API_URL = `${window.location.protocol}//${window.location.hostname}${PORT}/api/orders`;
+        const API_URL = `/.netlify/functions/orders`;
         const res = await fetch(API_URL);
         const data = await res.json();
         setOrders(data);
@@ -144,8 +143,7 @@ function MainApp() {
     setIsOrdering(true);
 
     try {
-      const PORT = import.meta.env.PROD ? '' : ':3001';
-      const API_URL = `${window.location.protocol}//${window.location.hostname}${PORT}/api/create-checkout-session`;
+      const API_URL = `/.netlify/functions/create-checkout-session`;
 
       const response = await fetch(API_URL, {
         method: 'POST',

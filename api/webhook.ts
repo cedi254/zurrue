@@ -59,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const country = addressDetails?.country || '';
 
         // Farbe und Größe aus Metadaten extrahieren
-        const color = session.metadata?.colorName || 'Unbekannt';
+        const color = session.metadata?.color || 'Unbekannt';
         const size = session.metadata?.size || 'Unbekannt';
 
         const totalAmount = session.amount_total;

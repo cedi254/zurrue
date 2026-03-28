@@ -150,11 +150,7 @@ export default function App() {
     return <SuccessPage />;
   }
 
-  return (
-    <PasswordGate>
-      <MainApp />
-    </PasswordGate>
-  );
+  return <MainApp />;
 }
 
 function SuccessPage() {
@@ -189,7 +185,7 @@ function SuccessPage() {
         transition={{ delay: 0.3 }}
         className="text-neutral-500 text-lg max-w-md mx-auto mb-12"
       >
-        Vielen Dank für dein Vertrauen. Deine Zahlung war erfolgreich. Du erhältst in Kürze eine Bestätigung per E-Mail.
+        Vielen Dank für dein Vertrauen. Deine Zahlung war erfolgreich. Wir bereiten jetzt alles für deinen Restock vor!
       </motion.p>
       <motion.div
         initial={{ opacity: 0 }}

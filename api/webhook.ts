@@ -53,14 +53,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Einzelne Adressfelder extrahieren
         const street = addressDetails?.line1 || '';
-        const houseNumber = addressDetails?.line2 || ''; // Oft wird die Nummer in line2 oder am Ende von line1 gespeichert
+        const houseNumber = addressDetails?.line2 || '';
         const zipCode = addressDetails?.postal_code || '';
         const city = addressDetails?.city || '';
         const country = addressDetails?.country || '';
 
+        // Farbe und Größe aus Metadaten extrahieren
+        const color = session.metadata?.colorName || 'Unbekannt';
+        const size = session.metadata?.size || 'Unbekannt';
+
         const totalAmount = session.amount_total;
         const paymentStatus = session.payment_status;
-        const items = session.metadata || {}; // Wir nutzen die Metadaten für size & color
+        const items = session.metadata || {};
 
         try {
             const pool = new Pool({
@@ -72,9 +76,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         INSERT INTO orders (
           stripe_session_id, customer_name, customer_email, 
           street, house_number, zip_code, city, country, 
-          items, total_amount, payment_status, status
+          color, size, items, total_amount, payment_status, status
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Offen')
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'Offen')
         ON CONFLICT (stripe_session_id) DO NOTHING;
       `;
 
@@ -87,6 +91,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 zipCode,
                 city,
                 country,
+                color,
+                size,
                 JSON.stringify(items),
                 totalAmount,
                 paymentStatus

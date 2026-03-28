@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 },
             ],
             mode: 'payment',
-            success_url: `${origin}/?success=true`,
+            success_url: `${origin}/success`,
             cancel_url: `${origin}/?canceled=true`,
             metadata: { size, color: colorName }
         });

@@ -77,11 +77,8 @@ function AdminDashboard() {
                     <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Datum</th>
                     <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Kunde</th>
                     <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Hose</th>
-                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Strasse & Nr.</th>
-                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">PLZ</th>
-                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Stadt</th>
-                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Land</th>
-                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Zahlung</th>
+                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Adresse</th>
+                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500 text-center">Zahlung</th>
                     <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Status</th>
                   </tr>
                 </thead>
@@ -95,18 +92,16 @@ function AdminDashboard() {
                         <div className="font-semibold text-neutral-900">{order.customer_name}</div>
                         <div className="text-xs text-neutral-500">{order.customer_email}</div>
                       </td>
-                      <td className="p-4 text-sm">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800 border border-neutral-200">
-                          {order.items?.size} | {order.items?.color}
-                        </span>
+                      <td className="p-4 text-sm font-medium text-neutral-900">
+                        {order.color || order.items?.color} / {order.size || order.items?.size}
                       </td>
-                      <td className="p-4 text-sm text-neutral-700">
-                        {order.street} {order.house_number}
+                      <td className="p-4 text-sm text-neutral-600 leading-relaxed">
+                        <div className="text-neutral-900">{order.street} {order.house_number}</div>
+                        <div className="text-xs text-neutral-500 font-mono tracking-tight">
+                          {order.zip_code} {order.city}, {order.country}
+                        </div>
                       </td>
-                      <td className="p-4 text-sm text-neutral-700 font-mono">{order.zip_code}</td>
-                      <td className="p-4 text-sm text-neutral-700">{order.city}</td>
-                      <td className="p-4 text-sm text-neutral-700 uppercase">{order.country}</td>
-                      <td className="p-4 text-sm">
+                      <td className="p-4 text-sm text-center">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest ${order.payment_status === 'paid' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
                           {order.payment_status}
                         </span>
@@ -125,7 +120,7 @@ function AdminDashboard() {
                   ))}
                   {orders.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="p-12 text-center text-neutral-400 italic">
+                      <td colSpan={6} className="p-12 text-center text-neutral-400 italic">
                         Noch keine Bestellungen im System.
                       </td>
                     </tr>
@@ -142,6 +137,7 @@ function AdminDashboard() {
 
 export default function App() {
   const path = window.location.pathname;
+
   if (path === '/admin') {
     return (
       <PasswordGate>
@@ -150,10 +146,61 @@ export default function App() {
     );
   }
 
+  if (path === '/success') {
+    return <SuccessPage />;
+  }
+
   return (
     <PasswordGate>
       <MainApp />
     </PasswordGate>
+  );
+}
+
+function SuccessPage() {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.location.href = '/';
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center font-sans">
+      <motion.div
+        initial={{ scale: 0.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 200, damping: 20 }}
+        className="w-24 h-24 bg-green-50 text-green-600 rounded-full flex items-center justify-center mb-8 border border-green-100"
+      >
+        <Check className="w-12 h-12" strokeWidth={3} />
+      </motion.div>
+      <motion.h1
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="text-4xl font-bold tracking-tight mb-4 text-neutral-900"
+      >
+        Bestellung erhalten!
+      </motion.h1>
+      <motion.p
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="text-neutral-500 text-lg max-w-md mx-auto mb-12"
+      >
+        Vielen Dank für dein Vertrauen. Deine Zahlung war erfolgreich. Du erhältst in Kürze eine Bestätigung per E-Mail.
+      </motion.p>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.8 }}
+        className="flex items-center gap-3 text-neutral-400 text-sm font-medium"
+      >
+        <div className="w-5 h-5 border-2 border-neutral-100 border-t-neutral-900 rounded-full animate-spin" />
+        Weiterleitung zur Startseite...
+      </motion.div>
+    </div>
   );
 }
 

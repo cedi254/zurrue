@@ -1,98 +1,138 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingBag, Check, Star, Shield, Truck, ArrowRight, Clock, X } from 'lucide-react';
+import { ShoppingBag, Check, Star, Shield, Truck, ArrowRight, Clock, X, ChevronLeft, ChevronRight } from 'lucide-react';
 // Import assets
 import logo from './assets/zurrue-logo-transparent.svg';
 import sizeTableImg from './assets/Grössentabelle_Trainerhosen_zurrue.png';
 import hosenNavy from './assets/zurrue-hosen-navy-white.png';
 import hosenGrayBlack from './assets/zurrue-hosen-gray-black.png';
+import hosenGrayWhite from './assets/zurrue-hosen-gray-white.jpeg';
 import hosenBlackWhite from './assets/zurrue-hosen-black-white.png';
+import hosenBlackBlack from './assets/zurrue-hosen-black-black.jpeg';
 
 import { PasswordGate } from './components/PasswordGate';
 
 const COLORS = [
   { id: 'navy', name: 'Navy-Weiß', image: hosenNavy, style: { background: 'radial-gradient(circle, #ffffff 25%, #1e293b 26%)' } },
   { id: 'grau-schwarz', name: 'Grau-Schwarz', image: hosenGrayBlack, style: { background: 'radial-gradient(circle, #000000 25%, #9ca3af 26%)' } },
-  { id: 'grau-weiss', name: 'Grau-Weiß', image: hosenGrayBlack, style: { background: 'radial-gradient(circle, #ffffff 25%, #9ca3af 26%)' } },
+  { id: 'grau-weiss', name: 'Grau-Weiß', image: hosenGrayWhite, style: { background: 'radial-gradient(circle, #ffffff 25%, #9ca3af 26%)' } },
   { id: 'schwarz-weiss', name: 'Schwarz-Weiß', image: hosenBlackWhite, style: { background: 'radial-gradient(circle, #ffffff 25%, #000000 26%)' } },
-  { id: 'schwarz-schwarz', name: 'Schwarz-Schwarz', image: hosenBlackWhite, style: { background: '#000000' } },
+  { id: 'schwarz-schwarz', name: 'Schwarz-Schwarz', image: hosenBlackBlack, style: { background: '#000000' } },
 ];
 
 const SIZES = ['S', 'M', 'L', 'XL'];
+const TARGET_DATE = new Date('2026-04-05T00:00:00');
 
 function AdminDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchOrders = async () => {
+    try {
+      const API_URL = `/api/orders`;
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      setOrders(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const API_URL = `/api/orders`;
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        setOrders(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchOrders();
   }, []);
 
+  const toggleStatus = async (sessionId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'Ausgeführt' ? 'Offen' : 'Ausgeführt';
+    try {
+      await fetch('/api/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, status: newStatus })
+      });
+      fetchOrders(); // Neu laden
+    } catch (err) {
+      console.error('Failed to update status:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50 p-8 font-sans">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Admin Dashboard - Bestellungen</h1>
+      <div className="max-w-[1400px] mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Bestellverwaltung</h1>
+          <button onClick={fetchOrders} className="text-sm bg-white border border-neutral-200 px-4 py-2 rounded-lg hover:bg-neutral-50">Aktualisieren</button>
+        </div>
+
         {loading ? (
-          <p className="text-neutral-500">Lade Bestellungen...</p>
+          <p className="text-neutral-500 text-center py-12">Lade Bestellungen...</p>
         ) : (
-          <div className="bg-white rounded-xl shadow overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-neutral-100 border-b border-neutral-200">
-                  <th className="p-4 font-semibold text-sm">Datum</th>
-                  <th className="p-4 font-semibold text-sm">Kunde</th>
-                  <th className="p-4 font-semibold text-sm">Bestellung</th>
-                  <th className="p-4 font-semibold text-sm">Adresse</th>
-                  <th className="p-4 font-semibold text-sm">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((order, i) => (
-                  <tr key={order.id || i} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
-                    <td className="p-4 text-sm whitespace-nowrap">
-                      {new Date(order.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="p-4 text-sm">
-                      <div className="font-medium text-neutral-900">{order.customer_name}</div>
-                      <div className="text-neutral-500">{order.customer_email}</div>
-                    </td>
-                    <td className="p-4 text-sm">
-                      <span className="bg-neutral-100 px-2 py-1 rounded text-xs font-medium border border-neutral-200">
-                        {order.items?.size} - {order.items?.color}
-                      </span>
-                    </td>
-                    <td className="p-4 text-sm text-neutral-600">
-                      {order.shipping_address?.line1}<br />
-                      {order.shipping_address?.postal_code} {order.shipping_address?.city}
-                    </td>
-                    <td className="p-4 text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {order.payment_status}
-                      </span>
-                    </td>
+          <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-neutral-50 border-b border-neutral-200">
+                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Datum</th>
+                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Kunde</th>
+                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Hose</th>
+                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Strasse & Nr.</th>
+                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">PLZ</th>
+                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Stadt</th>
+                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Land</th>
+                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Zahlung</th>
+                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Status</th>
                   </tr>
-                ))}
-                {orders.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center text-neutral-500">
-                      Keine Bestellungen gefunden.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {orders.map((order, i) => (
+                    <tr key={order.id || i} className="hover:bg-neutral-50/50 transition-colors">
+                      <td className="p-4 text-sm text-neutral-600 whitespace-nowrap">
+                        {new Date(order.created_at).toLocaleDateString('de-CH')}
+                      </td>
+                      <td className="p-4 text-sm">
+                        <div className="font-semibold text-neutral-900">{order.customer_name}</div>
+                        <div className="text-xs text-neutral-500">{order.customer_email}</div>
+                      </td>
+                      <td className="p-4 text-sm">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800 border border-neutral-200">
+                          {order.items?.size} | {order.items?.color}
+                        </span>
+                      </td>
+                      <td className="p-4 text-sm text-neutral-700">
+                        {order.street} {order.house_number}
+                      </td>
+                      <td className="p-4 text-sm text-neutral-700 font-mono">{order.zip_code}</td>
+                      <td className="p-4 text-sm text-neutral-700">{order.city}</td>
+                      <td className="p-4 text-sm text-neutral-700 uppercase">{order.country}</td>
+                      <td className="p-4 text-sm">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest ${order.payment_status === 'paid' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                          {order.payment_status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-sm">
+                        <button
+                          onClick={() => toggleStatus(order.stripe_session_id, order.status)}
+                          className={`w-full text-center px-4 py-2 rounded-lg text-xs font-semibold transition-all ${order.status === 'Ausgeführt'
+                            ? 'bg-green-600 text-white shadow-sm'
+                            : 'bg-white border border-neutral-200 text-neutral-700 hover:border-neutral-900'}`}
+                        >
+                          {order.status || 'Offen'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {orders.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="p-12 text-center text-neutral-400 italic">
+                        Noch keine Bestellungen im System.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -117,25 +157,97 @@ export default function App() {
   );
 }
 
+function ProductGallery({ selectedColor, onColorChange }: { selectedColor: any, onColorChange: (color: any) => void }) {
+  const index = COLORS.findIndex(c => c.id === selectedColor.id);
+
+  const paginate = (newDirection: number) => {
+    const nextIndex = (index + newDirection + COLORS.length) % COLORS.length;
+    onColorChange(COLORS[nextIndex]);
+  };
+
+  return (
+    <div className="relative aspect-[4/5] bg-neutral-100 rounded-3xl overflow-hidden shadow-2xl group">
+      <AnimatePresence initial={false} mode="wait">
+        <motion.img
+          key={selectedColor.id}
+          src={selectedColor.image}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.3 }}
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.2}
+          onDragEnd={(_e, { offset }) => {
+            if (offset.x > 50) paginate(-1);
+            else if (offset.x < -50) paginate(1);
+          }}
+          className="absolute inset-0 w-full h-full object-cover cursor-grab active:cursor-grabbing"
+        />
+      </AnimatePresence>
+
+      <button
+        onClick={() => paginate(-1)}
+        className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/80 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hidden lg:block hover:bg-white"
+        aria-label="Vorheriges Bild"
+      >
+        <ChevronLeft className="w-6 h-6" />
+      </button>
+      <button
+        onClick={() => paginate(1)}
+        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/80 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hidden lg:block hover:bg-white"
+        aria-label="Nächstes Bild"
+      >
+        <ChevronRight className="w-6 h-6" />
+      </button>
+
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+        {COLORS.map((_, i) => (
+          <div
+            key={i}
+            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === index ? 'bg-neutral-900 w-4' : 'bg-neutral-400/50'}`}
+          />
+        ))}
+      </div>
+
+      <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm z-10 border border-neutral-200">
+        Pre-Order Offen
+      </div>
+    </div>
+  );
+}
+
 function MainApp() {
-  const [selectedColor, setSelectedColor] = useState(COLORS[4]);
+  const [selectedColor, setSelectedColor] = useState(COLORS[0]);
   const [selectedSize, setSelectedSize] = useState('M');
   const [isOrdering, setIsOrdering] = useState(false);
   const [showSizeTable, setShowSizeTable] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(2 * 3600 + 45 * 60 + 30); // 2h 45m 30s
+  const [timeLeft, setTimeLeft] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const distance = TARGET_DATE.getTime() - now;
+      setTimeLeft(Math.max(0, Math.floor(distance / 1000)));
+    };
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
   }, []);
 
   const formatTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
+    const d = Math.floor(seconds / (3600 * 24));
+    const h = Math.floor((seconds % (3600 * 24)) / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+    return {
+      total: seconds,
+      days: d,
+      hours: h.toString().padStart(2, '0'),
+      minutes: m.toString().padStart(2, '0'),
+      seconds: s.toString().padStart(2, '0')
+    };
   };
 
   const handlePreOrder = async (e: React.FormEvent) => {
@@ -143,9 +255,7 @@ function MainApp() {
     setIsOrdering(true);
 
     try {
-      const API_URL = `/api/create-checkout-session`;
-
-      const response = await fetch(API_URL, {
+      const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -155,63 +265,44 @@ function MainApp() {
         })
       });
 
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(data?.error || `Server Fehler: ${response.status}`);
-      }
-
-      if (data?.url) {
-        window.location.href = data.url;
-      }
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      if (data.url) window.location.href = data.url;
     } catch (error: any) {
       console.error('Checkout Error:', error);
-      alert(`Verbindungsfehler: ${error.message}\n\nHinweis: \n1) Läuft die Netlify-Seite / hast du hochgeladen?\n2) Hast du "netlify dev" lokal benutzt anstatt "npm run dev"?\n3) Hat dein Stripe Account "Twint" aktiviert?`);
+      alert(`Stripe Fehler: ${error.message}`);
       setIsOrdering(false);
     }
   };
 
+  const time = formatTime(timeLeft);
+
   return (
     <div className="min-h-screen bg-neutral-50 font-sans text-neutral-900 selection:bg-neutral-900 selection:text-white">
       {/* Top Banner */}
-      <div className="bg-red-600 text-white text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2">
-        <Clock className="w-4 h-4" />
-        <span>Preorder noch offen bis:</span>
-        <span className="font-mono font-bold text-base tracking-wider">{formatTime(timeLeft)}</span>
+      <div className="bg-neutral-900 text-white py-3 px-4 text-center">
+        <div className="max-w-7xl mx-auto flex items-center justify-center gap-4 text-sm font-medium">
+          <Clock className="w-4 h-4 text-neutral-400" />
+          <span className="hidden sm:inline opacity-80">Der Pre-Order Sale endet in:</span>
+          <div className="flex gap-2 font-mono text-base tracking-tighter">
+            <span className="bg-white/10 px-1.5 py-0.5 rounded">{time.days}d</span>
+            <span className="bg-white/10 px-1.5 py-0.5 rounded">{time.hours}h</span>
+            <span className="bg-white/10 px-1.5 py-0.5 rounded">{time.minutes}m</span>
+            <span className="bg-white/10 px-1.5 py-0.5 rounded text-red-400">{time.seconds}s</span>
+          </div>
+        </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
-          <img src={logo} alt="zurrue logo" className="h-10 w-auto object-contain" />
+      <nav className="flex items-center justify-between px-6 py-6 max-w-7xl mx-auto">
+        <img src={logo} alt="zurrue" className="h-8 lg:h-10 w-auto" />
+        <div className="flex items-center gap-6">
+          <span className="text-xs font-bold uppercase tracking-widest text-neutral-400">Exclusive Drop 2026</span>
         </div>
-        <div className="text-sm font-medium text-neutral-500">Restock 2026</div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-6 py-12 lg:py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-start">
-
-          {/* Left Column: Image Gallery */}
-          <div className="relative group">
-            <motion.div
-              key={selectedColor.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4 }}
-              className="aspect-[4/5] bg-neutral-200 rounded-2xl overflow-hidden relative shadow-2xl"
-            >
-              <img
-                src={selectedColor.image}
-                alt={`Premium Trainerhose - ${selectedColor.name}`}
-                className="w-full h-full object-cover object-center"
-              />
-              <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider">
-                Pre-Order
-              </div>
-            </motion.div>
-
-
-          </div>
+      <main className="max-w-7xl mx-auto px-6 py-8 lg:py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-start">
+          <ProductGallery selectedColor={selectedColor} onColorChange={setSelectedColor} />
 
           {/* Right Column: Product Details & Form */}
           <div className="flex flex-col">
@@ -393,4 +484,3 @@ function MainApp() {
     </div>
   );
 }
-//test

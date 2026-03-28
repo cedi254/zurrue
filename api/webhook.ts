@@ -47,47 +47,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        const size = session.metadata?.size || 'Unbekannt';
-        const color = session.metadata?.color || 'Unbekannt';
         const customerName = session.customer_details?.name || 'Unbekannt';
         const customerEmail = session.customer_details?.email || 'Unbekannt';
         const addressDetails = session.customer_details?.address;
 
-        const shippingAddress = {
-            line1: addressDetails?.line1,
-            line2: addressDetails?.line2,
-            city: addressDetails?.city,
-            postal_code: addressDetails?.postal_code,
-            country: addressDetails?.country,
-        };
+        // Einzelne Adressfelder extrahieren
+        const street = addressDetails?.line1 || '';
+        const houseNumber = addressDetails?.line2 || ''; // Oft wird die Nummer in line2 oder am Ende von line1 gespeichert
+        const zipCode = addressDetails?.postal_code || '';
+        const city = addressDetails?.city || '';
+        const country = addressDetails?.country || '';
 
         const totalAmount = session.amount_total;
         const paymentStatus = session.payment_status;
-        const items = { size, color };
+        const items = session.metadata || {}; // Wir nutzen die Metadaten für size & color
 
         try {
             const pool = new Pool({
                 connectionString: process.env.DATABASE_URL,
                 ssl: { rejectUnauthorized: false }
             });
+
             const query = `
-        INSERT INTO orders (stripe_session_id, customer_name, customer_email, shipping_address, items, total_amount, payment_status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO orders (
+          stripe_session_id, customer_name, customer_email, 
+          street, house_number, zip_code, city, country, 
+          items, total_amount, payment_status, status
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Offen')
         ON CONFLICT (stripe_session_id) DO NOTHING;
       `;
+
             await pool.query(query, [
                 session.id,
                 customerName,
                 customerEmail,
-                JSON.stringify(shippingAddress),
+                street,
+                houseNumber,
+                zipCode,
+                city,
+                country,
                 JSON.stringify(items),
                 totalAmount,
                 paymentStatus
             ]);
             await pool.end();
-            console.log(`✅ Bestellung ${session.id} erfolgreich gespeichert!`);
-        } catch (dbErr) {
-            console.error('Fehler beim Speichern in DB:', dbErr);
+            console.log(`✅ Bestellung ${session.id} erfolgreich mit Details gespeichert!`);
+        } catch (dbErr: any) {
+            console.error('Fehler beim Speichern in DB:', dbErr.message);
             return res.status(500).send('Database Error');
         }
     }

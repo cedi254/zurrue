@@ -9,6 +9,8 @@
     "dev:frontend": "vite --port=3000 --host=0.0.0.0",
     "dev:backend": "tsx server.ts",
     "build": "vite build",
+    "build:server": "tsc server.ts --esModuleInterop --skipLibCheck --outDir .",
+    "start": "node server.js",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"

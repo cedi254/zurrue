@@ -9,7 +9,10 @@ export const handler: Handler = async (event, context) => {
 
     try {
         console.log('Fetching orders from Neon...');
-        const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+        const pool = new Pool({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
         const result = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
         await pool.end();
         console.log(`Successfully fetched ${result.rows.length} orders`);

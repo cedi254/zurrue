@@ -23,13 +23,19 @@ export const handler: Handler = async (event, context) => {
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     if (!sig || !endpointSecret || !event.body) {
-        console.error('Webhook missing signature or secret');
+        console.error('Webhook missing signature, secret or body');
         return { statusCode: 400, body: 'Webhook Error: Missing signature or secret' };
+    }
+
+    let payload = event.body;
+    if (event.isBase64Encoded) {
+        payload = Buffer.from(payload, 'base64').toString();
     }
 
     let stripeEvent;
     try {
-        stripeEvent = stripe.webhooks.constructEvent(event.body, sig, endpointSecret);
+        stripeEvent = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
+        console.log('Webhook Event constructed:', stripeEvent.type);
     } catch (err: any) {
         console.error('Webhook signature failed:', err.message);
         return { statusCode: 400, body: `Webhook Error: ${err.message}` };
@@ -59,7 +65,10 @@ export const handler: Handler = async (event, context) => {
 
         try {
             console.log('Saving to Neon DB...');
-            const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+            const pool = new Pool({
+                connectionString: process.env.DATABASE_URL,
+                ssl: { rejectUnauthorized: false } // Wichtig für Neon!
+            });
             const query = `
                 INSERT INTO orders (stripe_session_id, customer_name, customer_email, shipping_address, items, total_amount, payment_status)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)

@@ -35,22 +35,26 @@ export const handler: Handler = async (event, context) => {
         }
 
         const origin = event.headers.origin || 'https://zurrue.ch';
+        const priceId = process.env.STRIPE_PRICE_ID;
 
         const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'], // Twint temporär entfernt zum Testen
+            payment_method_types: ['card'],
             billing_address_collection: 'required',
             shipping_address_collection: {
                 allowed_countries: ['CH', 'DE', 'AT', 'FR', 'IT', 'LI'],
             },
             line_items: [
-                {
+                priceId ? {
+                    price: priceId,
+                    quantity: 1,
+                } : {
                     price_data: {
                         currency: 'chf',
                         product_data: {
                             name: `zurrue Trainerhose`,
-                            description: `Farbe: ${colorName}, Größe: ${size}`,
+                            description: `Farbe: ${colorName}, Größe: ${size} (Inkl. Versand 7.50 CHF)`,
                         },
-                        unit_amount: 4400,
+                        unit_amount: 5150, // 44.00 + 7.50 = 51.50 CHF
                     },
                     quantity: 1,
                 },

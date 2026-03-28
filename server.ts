@@ -8,7 +8,7 @@ import path from 'path';
 dotenv.config();
 
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 3001;
 
 // Initialize Stripe (wir brauchen den secret key aus der .env)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -18,7 +18,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 // Initialize Neon Postgres
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false } // Wichtig für Neon!
 });
+
+// Statische Dateien aus dem "dist" Ordner servieren (nach dem Build)
+app.use(express.static(path.join(__dirname, 'dist')));
 
 // ==========================================
 // 1. Stripe Webhook (braucht req.body als raw buffer)
@@ -106,28 +110,34 @@ app.post('/api/create-checkout-session', async (req, res) => {
     }
 
     try {
+        const origin = req.headers.origin || 'https://zurrue.ch';
+        const priceId = process.env.STRIPE_PRICE_ID;
+
         const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card', 'twint'], // Stripe muss Twint aktiviert haben im Dashboard
+            payment_method_types: ['card', 'twint'],
             billing_address_collection: 'required',
             shipping_address_collection: {
-                allowed_countries: ['CH', 'DE', 'AT'], // Lieferung nur in diese Länder (kann angepasst werden)
+                allowed_countries: ['CH', 'DE', 'AT', 'FR', 'IT', 'LI'],
             },
             line_items: [
-                {
+                priceId ? {
+                    price: priceId,
+                    quantity: 1,
+                } : {
                     price_data: {
                         currency: 'chf',
                         product_data: {
                             name: `zurrue Trainerhose`,
-                            description: `Farbe: ${colorName}, Größe: ${size}`,
+                            description: `Farbe: ${colorName}, Größe: ${size} (Inkl. Versand 7.50 CHF)`,
                         },
-                        unit_amount: 4400, // 44.00 CHF in Rappen
+                        unit_amount: 5150, // 51.50 CHF
                     },
                     quantity: 1,
                 },
             ],
             mode: 'payment',
-            success_url: `${req.headers.origin}/?success=true`,
-            cancel_url: `${req.headers.origin}/?canceled=true`,
+            success_url: `${origin}/?success=true`,
+            cancel_url: `${origin}/?canceled=true`,
             metadata: {
                 size,
                 color: colorName
@@ -159,6 +169,11 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
+// Fallback: Alle anderen Anfragen an die index.html schicken (für SPA Routing)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 app.listen(port, () => {
-    console.log(`🚀 API Server läuft auf http://localhost:${port}`);
+    console.log(`🚀 API Server läuft auf Port ${port}`);
 });

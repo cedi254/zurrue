@@ -27,7 +27,7 @@ function AdminDashboard() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const API_URL = `/.netlify/functions/orders`;
+        const API_URL = `/api/orders`;
         const res = await fetch(API_URL);
         const data = await res.json();
         setOrders(data);
@@ -143,7 +143,7 @@ function MainApp() {
     setIsOrdering(true);
 
     try {
-      const API_URL = `/.netlify/functions/create-checkout-session`;
+      const API_URL = `/api/create-checkout-session`;
 
       const response = await fetch(API_URL, {
         method: 'POST',

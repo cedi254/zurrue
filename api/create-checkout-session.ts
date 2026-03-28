@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const priceId = process.env.STRIPE_PRICE_ID;
 
         const session = await stripe.checkout.sessions.create({
-            automatic_payment_methods: { enabled: true },
+            payment_method_types: ['card'],
             billing_address_collection: 'required',
             shipping_address_collection: {
                 allowed_countries: ['CH', 'DE', 'AT', 'FR', 'IT', 'LI'],

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingBag, Check, Star, Shield, Truck, ArrowRight, Clock, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingBag, Check, Star, Shield, Truck, ArrowRight, Clock, X, ChevronLeft, ChevronRight, Trash2, ShoppingCart } from 'lucide-react';
 // Import assets
 import logo from './assets/zurrue-logo-transparent.svg';
 import sizeTableImg from './assets/Grössentabelle_Trainerhosen_zurrue.png';
@@ -22,6 +22,16 @@ const COLORS = [
 
 const SIZES = ['S', 'M', 'L', 'XL'];
 const TARGET_DATE = new Date('2026-04-05T00:00:00');
+
+interface CartItem {
+  cartId: string;
+  color: string;
+  colorId: string;
+  size: string;
+  price: number;
+  image: string;
+  quantity: number;
+}
 
 function AdminDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -58,12 +68,30 @@ function AdminDashboard() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthorized');
+    window.location.href = '/';
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50 p-8 font-sans">
       <div className="max-w-[1400px] mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Bestellverwaltung</h1>
-          <button onClick={fetchOrders} className="text-sm bg-white border border-neutral-200 px-4 py-2 rounded-lg hover:bg-neutral-50">Aktualisieren</button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchOrders}
+              className="text-sm bg-white border border-neutral-200 px-4 py-2 rounded-lg hover:bg-neutral-50 transition-colors"
+            >
+              Aktualisieren
+            </button>
+            <button
+              onClick={handleLogout}
+              className="text-sm bg-red-50 text-red-600 border border-red-100 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors font-medium"
+            >
+              Abmelden
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -92,8 +120,14 @@ function AdminDashboard() {
                         <div className="font-semibold text-neutral-900">{order.customer_name}</div>
                         <div className="text-xs text-neutral-500">{order.customer_email}</div>
                       </td>
-                      <td className="p-4 text-sm font-medium text-neutral-900">
-                        {order.color || order.items?.color} / {order.size || order.items?.size}
+                      <td className="p-4 text-sm font-medium text-neutral-900 leading-tight">
+                        {order.color === 'Multi-Item' ? (
+                          <div className="max-w-[200px] truncate" title={order.items?.itemsSummary}>
+                            {order.items?.itemsSummary}
+                          </div>
+                        ) : (
+                          `${order.color || order.items?.color} / ${order.size || order.items?.size}`
+                        )}
                       </td>
                       <td className="p-4 text-sm text-neutral-600 leading-relaxed">
                         <div className="text-neutral-900">{order.street} {order.house_number}</div>
@@ -136,9 +170,9 @@ function AdminDashboard() {
 }
 
 export default function App() {
-  const path = window.location.pathname;
+  const path = window.location.pathname.toLowerCase();
 
-  if (path === '/admin') {
+  if (path.startsWith('/admin')) {
     return (
       <PasswordGate>
         <AdminDashboard />
@@ -146,7 +180,7 @@ export default function App() {
     );
   }
 
-  if (path === '/success') {
+  if (path.startsWith('/success')) {
     return <SuccessPage />;
   }
 
@@ -266,6 +300,8 @@ function MainApp() {
   const [isOrdering, setIsOrdering] = useState(false);
   const [showSizeTable, setShowSizeTable] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
     const updateTimer = () => {
@@ -293,19 +329,46 @@ function MainApp() {
     };
   };
 
-  const handlePreOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const addToCart = () => {
+    const cartId = `${selectedColor.id}-${selectedSize}`;
+    const existingIndex = cart.findIndex(i => i.cartId === cartId);
+
+    if (existingIndex !== -1) {
+      const newCart = [...cart];
+      newCart[existingIndex].quantity += 1;
+      setCart(newCart);
+    } else {
+      setCart([...cart, {
+        cartId,
+        color: selectedColor.name,
+        colorId: selectedColor.id,
+        size: selectedSize,
+        price: 44.00,
+        image: selectedColor.image,
+        quantity: 1
+      }]);
+    }
+    setIsCartOpen(true);
+  };
+
+  const removeFromCart = (cartId: string) => {
+    setCart(cart.filter(i => i.cartId !== cartId));
+  };
+
+  const calculateTotal = () => {
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    return subtotal > 0 ? subtotal + 7.50 : 0;
+  };
+
+  const handleCheckout = async () => {
+    if (cart.length === 0) return;
     setIsOrdering(true);
 
     try {
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          size: selectedSize,
-          colorName: selectedColor.name,
-          colorId: selectedColor.id
-        })
+        body: JSON.stringify({ cart })
       });
 
       const data = await response.json();
@@ -336,10 +399,20 @@ function MainApp() {
         </div>
       </div>
 
-      <nav className="flex items-center justify-between px-6 py-6 max-w-7xl mx-auto">
+      <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-neutral-100 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto w-full">
         <img src={logo} alt="zurrue" className="h-8 lg:h-10 w-auto" />
         <div className="flex items-center gap-6">
-          <span className="text-xs font-bold uppercase tracking-widest text-neutral-400">Exclusive Drop 2026</span>
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="relative p-2 hover:bg-neutral-100 rounded-full transition-colors"
+          >
+            <ShoppingCart className="w-6 h-6" />
+            {cart.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-neutral-900 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">
+                {cart.reduce((s, i) => s + i.quantity, 0)}
+              </span>
+            )}
+          </button>
         </div>
       </nav>
 
@@ -447,32 +520,26 @@ function MainApp() {
                     </div>
                   </div>
 
-                  {/* Pre-Order Form */}
-                  <div className="pt-6 border-t border-neutral-200">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider mb-4">Vorbestellung abschließen</h3>
-                    <form onSubmit={handlePreOrder} className="space-y-4">
-                      <button
-                        type="submit"
-                        disabled={isOrdering}
-                        className="w-full mt-4 bg-neutral-900 text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-neutral-800 focus:ring-4 focus:ring-neutral-200 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-                      >
-                        {isOrdering ? (
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                          >
-                            <ShoppingBag className="w-5 h-5" />
-                          </motion.div>
-                        ) : (
-                          <>
-                            Jetzt Vorbestellen <ArrowRight className="w-5 h-5" />
-                          </>
-                        )}
-                      </button>
-                      <p className="text-xs text-center text-neutral-500 mt-4">
-                        Da es sich um eine Vorbestellung handelt, wird die Lieferung ca. 1-2 Monate dauern.
-                      </p>
-                    </form>
+                  {/* Action Buttons */}
+                  <div className="pt-6 border-t border-neutral-200 space-y-4">
+                    <button
+                      onClick={addToCart}
+                      className="w-full bg-neutral-900 text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-neutral-800 focus:ring-4 focus:ring-neutral-200 transition-all"
+                    >
+                      In den Warenkorb <ShoppingBag className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        addToCart();
+                        setIsCartOpen(true);
+                      }}
+                      className="w-full bg-white border border-neutral-200 text-neutral-900 py-4 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-neutral-50 transition-all"
+                    >
+                      Jetzt sicher auschecken <Check className="w-5 h-5" />
+                    </button>
+                    <p className="text-xs text-center text-neutral-500 mt-4">
+                      Bestelle mehrere Hosen und zahle nur einmal Versandkosten (7.50 CHF).
+                    </p>
                   </div>
                 </motion.div>
               </AnimatePresence>
@@ -480,6 +547,119 @@ function MainApp() {
           </div>
         </div>
       </main>
+
+      {/* Cart Drawer */}
+      <AnimatePresence>
+        {isCartOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCartOpen(false)}
+              className="fixed inset-0 z-50 bg-neutral-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white z-50 shadow-2xl flex flex-col"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-neutral-100">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  Warenkorb ({cart.reduce((s, i) => s + i.quantity, 0)})
+                </h3>
+                <button
+                  onClick={() => setIsCartOpen(false)}
+                  className="p-2 hover:bg-neutral-100 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {cart.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+                    <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center text-neutral-300">
+                      <ShoppingCart className="w-10 h-10" />
+                    </div>
+                    <p className="text-neutral-500 font-medium">Dein Warenkorb ist leer.</p>
+                    <button
+                      onClick={() => setIsCartOpen(false)}
+                      className="text-sm font-bold uppercase tracking-widest text-neutral-900"
+                    >
+                      Jetzt shoppen
+                    </button>
+                  </div>
+                ) : (
+                  cart.map((item) => (
+                    <div key={item.cartId} className="flex gap-4 group">
+                      <div className="w-20 h-24 bg-neutral-100 rounded-xl overflow-hidden flex-shrink-0">
+                        <img src={item.image} alt={item.color} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-bold text-neutral-900">{item.color}</h4>
+                            <p className="text-xs text-neutral-500 uppercase tracking-wider font-semibold">Größe: {item.size}</p>
+                            <p className="text-sm font-medium mt-1">CHF {item.price.toFixed(2)}</p>
+                          </div>
+                          <button
+                            onClick={() => removeFromCart(item.cartId)}
+                            className="p-1 text-neutral-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-3 mt-3">
+                          <span className="text-xs font-medium text-neutral-500">Menge: {item.quantity}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {cart.length > 0 && (
+                <div className="p-6 border-t border-neutral-100 bg-neutral-50 space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-500">Zwischensumme</span>
+                      <span>CHF {cart.reduce((s, i) => s + (i.price * i.quantity), 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-neutral-500">Versandkosten (Flat)</span>
+                      <span>CHF 7.50</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold pt-2 border-t border-neutral-200">
+                      <span>Gesamtbetrag</span>
+                      <span>CHF {calculateTotal().toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleCheckout}
+                    disabled={isOrdering}
+                    className="w-full bg-neutral-900 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-neutral-800 transition-all disabled:opacity-70"
+                  >
+                    {isOrdering ? (
+                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        Checkout abschließen <ArrowRight className="w-5 h-5" />
+                      </>
+                    )}
+                  </button>
+                  <p className="text-[10px] text-center text-neutral-400 uppercase tracking-widest font-bold">
+                    Sichere Verschlüsselung & TWINT/Kreditkarte
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Size Table Modal */}
       <AnimatePresence>

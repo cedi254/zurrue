@@ -59,8 +59,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const country = addressDetails?.country || '';
 
         // Farbe und Größe aus Metadaten extrahieren
-        const color = session.metadata?.color || 'Unbekannt';
-        const size = session.metadata?.size || 'Unbekannt';
+        const itemsCount = session.metadata?.itemsCount || '1';
+        const itemsSummary = session.metadata?.itemsSummary || 'Unbekannt';
+
+        // In den Spalten color/size speichern wir bei Warenkörben eine Zusammenfassung
+        const color = itemsCount === '1' ? itemsSummary : 'Multi-Item';
+        const size = itemsCount === '1' ? (session.metadata?.size || 'Standard') : `${itemsCount} Hosen`;
 
         const totalAmount = session.amount_total;
         const paymentStatus = session.payment_status;

@@ -68,6 +68,36 @@ function AdminDashboard() {
     }
   };
 
+  const calculateColorStats = () => {
+    const stats: Record<string, number> = {};
+    const increment = (colorString: string, quantity: number) => {
+      const match = colorString.match(/^(.*?)\s*\(/);
+      const color = match ? match[1].trim() : colorString.trim();
+      stats[color] = (stats[color] || 0) + quantity;
+    };
+
+    orders.forEach(order => {
+      if (order.payment_status !== 'paid') return;
+      if (order.items?.itemsSummary) {
+        const parts = order.items.itemsSummary.split(', ');
+        parts.forEach((p: string) => {
+          const match = p.match(/^(\d+)x\s+(.*)/);
+          if (match) {
+            increment(match[2], parseInt(match[1], 10));
+          } else {
+            increment(p, 1);
+          }
+        });
+      } else {
+        const col = order.color;
+        if (col && col !== 'Multi-Item') {
+          increment(col, 1);
+        }
+      }
+    });
+    return stats;
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('isAuthorized');
     window.location.href = '/';
@@ -97,72 +127,97 @@ function AdminDashboard() {
         {loading ? (
           <p className="text-neutral-500 text-center py-12">Lade Bestellungen...</p>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-neutral-50 border-b border-neutral-200">
-                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Datum</th>
-                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Kunde</th>
-                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Hose</th>
-                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Adresse</th>
-                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500 text-center">Zahlung</th>
-                    <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {orders.map((order, i) => (
-                    <tr key={order.id || i} className="hover:bg-neutral-50/50 transition-colors">
-                      <td className="p-4 text-sm text-neutral-600 whitespace-nowrap">
-                        {new Date(order.created_at).toLocaleDateString('de-CH')}
-                      </td>
-                      <td className="p-4 text-sm">
-                        <div className="font-semibold text-neutral-900">{order.customer_name}</div>
-                        <div className="text-xs text-neutral-500">{order.customer_email}</div>
-                      </td>
-                      <td className="p-4 text-sm font-medium text-neutral-900 leading-tight">
-                        {order.color === 'Multi-Item' ? (
-                          <div className="whitespace-pre-line leading-relaxed" title={order.items?.itemsSummary}>
-                            {order.items?.itemsSummary?.split(', ').map((item: string, i: number) => (
-                              <div key={i}>{item}</div>
-                            )) || order.items?.itemsSummary}
-                          </div>
-                        ) : (
-                          `${order.color || order.items?.color} / ${order.size || order.items?.size}`
-                        )}
-                      </td>
-                      <td className="p-4 text-sm text-neutral-600 leading-relaxed">
-                        <div className="text-neutral-900">{order.street} {order.house_number}</div>
-                        <div className="text-xs text-neutral-500 font-mono tracking-tight">
-                          {order.zip_code} {order.city}, {order.country}
-                        </div>
-                      </td>
-                      <td className="p-4 text-sm text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest ${order.payment_status === 'paid' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                          {order.payment_status}
-                        </span>
-                      </td>
-                      <td className="p-4 text-sm">
-                        <button
-                          onClick={() => toggleStatus(order.stripe_session_id, order.status)}
-                          className={`w-full text-center px-4 py-2 rounded-lg text-xs font-semibold transition-all ${order.status === 'Ausgeführt'
-                            ? 'bg-green-600 text-white shadow-sm'
-                            : 'bg-white border border-neutral-200 text-neutral-700 hover:border-neutral-900'}`}
-                        >
-                          {order.status || 'Offen'}
-                        </button>
-                      </td>
-                    </tr>
+          <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200">
+                <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-4">Übersicht Hosen</h3>
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-between items-center text-sm border-b border-neutral-100 pb-3 mb-1">
+                    <span className="font-bold text-neutral-900">Total Hosen</span>
+                    <span className="font-bold text-neutral-900 bg-neutral-900 text-white px-2 py-0.5 rounded-full text-xs">
+                      {Object.values(calculateColorStats()).reduce((a, b) => a + b, 0)}
+                    </span>
+                  </div>
+                  {Object.entries(calculateColorStats()).sort((a, b) => b[1] - a[1]).map(([color, count]) => (
+                    <div key={color} className="flex justify-between items-center text-sm">
+                      <span className="text-neutral-600 font-medium">{color}</span>
+                      <span className="font-bold bg-neutral-100 px-2 py-0.5 rounded-full text-xs text-neutral-700">{count}</span>
+                    </div>
                   ))}
-                  {orders.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="p-12 text-center text-neutral-400 italic">
-                        Noch keine Bestellungen im System.
-                      </td>
-                    </tr>
+                  {Object.keys(calculateColorStats()).length === 0 && (
+                    <p className="text-xs text-neutral-400 italic">Noch keine bezahlten Bestellungen erfasst.</p>
                   )}
-                </tbody>
-              </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-neutral-50 border-b border-neutral-200">
+                      <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Datum</th>
+                      <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Kunde</th>
+                      <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Hose</th>
+                      <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Adresse</th>
+                      <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500 text-center">Zahlung</th>
+                      <th className="p-4 font-semibold text-xs uppercase tracking-wider text-neutral-500">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {orders.map((order, i) => (
+                      <tr key={order.id || i} className="hover:bg-neutral-50/50 transition-colors">
+                        <td className="p-4 text-sm text-neutral-600 whitespace-nowrap">
+                          {new Date(order.created_at).toLocaleDateString('de-CH')}
+                        </td>
+                        <td className="p-4 text-sm">
+                          <div className="font-semibold text-neutral-900">{order.customer_name}</div>
+                          <div className="text-xs text-neutral-500">{order.customer_email}</div>
+                        </td>
+                        <td className="p-4 text-sm font-medium text-neutral-900 leading-tight">
+                          {order.color === 'Multi-Item' ? (
+                            <div className="whitespace-pre-line leading-relaxed" title={order.items?.itemsSummary}>
+                              {order.items?.itemsSummary?.split(', ').map((item: string, i: number) => (
+                                <div key={i}>{item}</div>
+                              )) || order.items?.itemsSummary}
+                            </div>
+                          ) : (
+                            `${order.color || order.items?.color} / ${order.size || order.items?.size}`
+                          )}
+                        </td>
+                        <td className="p-4 text-sm text-neutral-600 leading-relaxed">
+                          <div className="text-neutral-900">{order.street} {order.house_number}</div>
+                          <div className="text-xs text-neutral-500 font-mono tracking-tight">
+                            {order.zip_code} {order.city}, {order.country}
+                          </div>
+                        </td>
+                        <td className="p-4 text-sm text-center">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest ${order.payment_status === 'paid' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                            {order.payment_status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-sm">
+                          <button
+                            onClick={() => toggleStatus(order.stripe_session_id, order.status)}
+                            className={`w-full text-center px-4 py-2 rounded-lg text-xs font-semibold transition-all ${order.status === 'Ausgeführt'
+                              ? 'bg-green-600 text-white shadow-sm'
+                              : 'bg-white border border-neutral-200 text-neutral-700 hover:border-neutral-900'}`}
+                          >
+                            {order.status || 'Offen'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {orders.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-12 text-center text-neutral-400 italic">
+                          Noch keine Bestellungen im System.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

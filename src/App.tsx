@@ -21,7 +21,7 @@ const COLORS = [
 ];
 
 const SIZES = ['S', 'M', 'L', 'XL'];
-const TARGET_DATE = new Date('2026-04-05T00:00:00');
+const TARGET_DATE = new Date('2026-04-05T21:00:00+02:00');
 
 interface CartItem {
   cartId: string;
@@ -122,8 +122,10 @@ function AdminDashboard() {
                       </td>
                       <td className="p-4 text-sm font-medium text-neutral-900 leading-tight">
                         {order.color === 'Multi-Item' ? (
-                          <div className="max-w-[200px] truncate" title={order.items?.itemsSummary}>
-                            {order.items?.itemsSummary}
+                          <div className="whitespace-pre-line leading-relaxed" title={order.items?.itemsSummary}>
+                            {order.items?.itemsSummary?.split(', ').map((item: string, i: number) => (
+                              <div key={i}>{item}</div>
+                            )) || order.items?.itemsSummary}
                           </div>
                         ) : (
                           `${order.color || order.items?.color} / ${order.size || order.items?.size}`

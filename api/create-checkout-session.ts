@@ -48,8 +48,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             quantity: 1,
         });
 
-        // Zusammenfassung für Metadaten (max 500 chars)
-        const itemsSummary = cart.map((i: any) => `${i.color} (${i.size})`).join(', ');
+        // Zusammenfassung für Metadaten
+        const itemsSummary = cart.map((i: any) => `${i.quantity || 1}x ${i.color} (${i.size})`).join(', ');
+
+        const totalQuantity = cart.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0);
+
+        const metadata: any = {
+            itemsCount: totalQuantity.toString(),
+            itemsSummary: itemsSummary.substring(0, 500)
+        };
+
+        // Falls nur ein Artikel mit Menge 1, senden wir color/size explizit für das Dashboard
+        if (cart.length === 1 && totalQuantity === 1) {
+            metadata.color = cart[0].color;
+            metadata.size = cart[0].size;
+        } else {
+            metadata.color = 'Multi-Item';
+            metadata.size = `${totalQuantity} Hosen`;
+        }
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
@@ -61,11 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             mode: 'payment',
             success_url: `${origin}/success`,
             cancel_url: `${origin}/?canceled=true`,
-            metadata: {
-                itemsCount: cart.length.toString(),
-                itemsSummary: itemsSummary.substring(0, 500),
-                cartJson: JSON.stringify(cart).substring(0, 500) // Fallback für Webhook
-            }
+            metadata
         });
 
         return res.status(200).json({ url: session.url });

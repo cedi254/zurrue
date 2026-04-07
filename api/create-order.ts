@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             JSON.stringify(shippingAddress || {}),
             JSON.stringify(items),
             totalAmount,
-            paymentStatus || 'manual_paid'
+            paymentStatus || 'paid'
         ]);
 
         await pool.end();

@@ -34,7 +34,7 @@ export const handler: Handler = async (event, context) => {
             JSON.stringify(shippingAddress || {}),
             JSON.stringify(items),
             totalAmount,
-            paymentStatus || 'manual_paid'
+            paymentStatus || 'paid'
         ]);
 
         await pool.end();

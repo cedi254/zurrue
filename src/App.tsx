@@ -20,7 +20,7 @@ const COLORS = [
   { id: 'schwarz-schwarz', name: 'Schwarz-Schwarz', image: hosenBlackBlack, style: { background: '#000000' } },
 ];
 
-const SIZES = ['S', 'M', 'L', 'XL'];
+const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 const TARGET_DATE = new Date('2026-04-05T21:00:00+02:00');
 
 interface CartItem {
@@ -123,7 +123,7 @@ function AdminDashboard() {
         },
         items: { size: manualOrderForm.size, color: manualOrderForm.color },
         totalAmount: parseFloat(manualOrderForm.totalAmount) * 100, // in cents
-        paymentStatus: 'manual_paid'
+        paymentStatus: 'paid'
       };
       await fetch('/api/create-order', {
         method: 'POST',

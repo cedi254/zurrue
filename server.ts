@@ -187,7 +187,7 @@ app.post('/api/create-order', async (req, res) => {
             JSON.stringify(shippingAddress || {}),
             JSON.stringify(items),
             totalAmount,
-            paymentStatus || 'manual_paid'
+            paymentStatus || 'paid'
         ]);
 
         res.status(200).json(result.rows[0]);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 const PASSWORD_KEY = 'site_access_password';
-const CORRECT_PASSWORD = 'zurrue';
+const CORRECT_PASSWORD = '57umme';
 
 export default function PasswordProtect({ children }: { children: React.ReactNode }) {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);

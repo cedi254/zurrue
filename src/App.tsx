@@ -36,6 +36,11 @@ interface CartItem {
 function AdminDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showManualOrder, setShowManualOrder] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [manualOrderForm, setManualOrderForm] = useState({
+    customerName: '', customerEmail: '', street: '', houseNumber: '', zipCode: '', city: '', country: 'CH', size: 'M', color: COLORS[0].name, totalAmount: '51.50'
+  });
 
   const fetchOrders = async () => {
     try {
@@ -103,12 +108,51 @@ function AdminDashboard() {
     window.location.href = '/';
   };
 
+  const handleCreateManualOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const payload = {
+        customerName: manualOrderForm.customerName,
+        customerEmail: manualOrderForm.customerEmail,
+        shippingAddress: {
+          line1: `${manualOrderForm.street} ${manualOrderForm.houseNumber}`.trim(),
+          city: manualOrderForm.city,
+          postal_code: manualOrderForm.zipCode,
+          country: manualOrderForm.country
+        },
+        items: { size: manualOrderForm.size, color: manualOrderForm.color },
+        totalAmount: parseFloat(manualOrderForm.totalAmount) * 100, // in cents
+        paymentStatus: 'manual_paid'
+      };
+      await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      setShowManualOrder(false);
+      setManualOrderForm({ ...manualOrderForm, customerName: '', customerEmail: '', street: '', houseNumber: '', zipCode: '', city: '' });
+      fetchOrders();
+    } catch (err) {
+      console.error(err);
+      alert('Fehler beim Erstellen der Bestellung');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50 p-8 font-sans">
       <div className="max-w-[1400px] mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Bestellverwaltung</h1>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowManualOrder(true)}
+              className="text-sm bg-neutral-900 text-white px-4 py-2 rounded-lg hover:bg-neutral-800 transition-colors whitespace-nowrap"
+            >
+              + Neue Bestellung
+            </button>
             <button
               onClick={fetchOrders}
               className="text-sm bg-white border border-neutral-200 px-4 py-2 rounded-lg hover:bg-neutral-50 transition-colors"
@@ -221,6 +265,86 @@ function AdminDashboard() {
             </div>
           </div>
         )}
+
+        <AnimatePresence>
+          {showManualOrder && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowManualOrder(false)}
+                className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 z-10"
+              >
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold">Manuelle Bestellung</h3>
+                  <button onClick={() => setShowManualOrder(false)} className="text-neutral-400 hover:text-neutral-900">
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                <form onSubmit={handleCreateManualOrder} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-500 mb-1">Name *</label>
+                      <input required type="text" className="w-full border rounded-lg px-3 py-2 text-sm" value={manualOrderForm.customerName} onChange={e => setManualOrderForm({ ...manualOrderForm, customerName: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-500 mb-1">E-Mail</label>
+                      <input type="email" className="w-full border rounded-lg px-3 py-2 text-sm" value={manualOrderForm.customerEmail} onChange={e => setManualOrderForm({ ...manualOrderForm, customerEmail: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-neutral-500 mb-1">Strasse</label>
+                      <input type="text" className="w-full border rounded-lg px-3 py-2 text-sm" value={manualOrderForm.street} onChange={e => setManualOrderForm({ ...manualOrderForm, street: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-500 mb-1">Nr.</label>
+                      <input type="text" className="w-full border rounded-lg px-3 py-2 text-sm" value={manualOrderForm.houseNumber} onChange={e => setManualOrderForm({ ...manualOrderForm, houseNumber: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-500 mb-1">PLZ</label>
+                      <input type="text" className="w-full border rounded-lg px-3 py-2 text-sm" value={manualOrderForm.zipCode} onChange={e => setManualOrderForm({ ...manualOrderForm, zipCode: e.target.value })} />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-neutral-500 mb-1">Ort</label>
+                      <input type="text" className="w-full border rounded-lg px-3 py-2 text-sm" value={manualOrderForm.city} onChange={e => setManualOrderForm({ ...manualOrderForm, city: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-500 mb-1">Größe</label>
+                      <select className="w-full border rounded-lg px-3 py-2 text-sm" value={manualOrderForm.size} onChange={e => setManualOrderForm({ ...manualOrderForm, size: e.target.value })}>
+                        {SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-neutral-500 mb-1">Farbe</label>
+                      <select className="w-full border rounded-lg px-3 py-2 text-sm" value={manualOrderForm.color} onChange={e => setManualOrderForm({ ...manualOrderForm, color: e.target.value })}>
+                        {COLORS.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1">Betrag (CHF) *</label>
+                    <input required type="number" step="0.05" className="w-full border rounded-lg px-3 py-2 text-sm" value={manualOrderForm.totalAmount} onChange={e => setManualOrderForm({ ...manualOrderForm, totalAmount: e.target.value })} />
+                  </div>
+                  <button type="submit" disabled={submitting} className="w-full bg-neutral-900 text-white rounded-lg py-3 font-medium mt-4 disabled:opacity-50">
+                    {submitting ? 'Speichere...' : 'Bestellung anlegen'}
+                  </button>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

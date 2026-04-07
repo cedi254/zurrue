@@ -164,6 +164,39 @@ app.get('/api/orders', async (req, res) => {
     }
 });
 
+app.post('/api/create-order', async (req, res) => {
+    try {
+        const { customerName, customerEmail, shippingAddress, items, totalAmount, paymentStatus } = req.body;
+
+        if (!customerName || !items || !totalAmount) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const stripeSessionId = `manual-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        const query = `
+            INSERT INTO orders (stripe_session_id, customer_name, customer_email, shipping_address, items, total_amount, payment_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *;
+        `;
+
+        const result = await pool.query(query, [
+            stripeSessionId,
+            customerName,
+            customerEmail || '',
+            JSON.stringify(shippingAddress || {}),
+            JSON.stringify(items),
+            totalAmount,
+            paymentStatus || 'manual_paid'
+        ]);
+
+        res.status(200).json(result.rows[0]);
+    } catch (error: any) {
+        console.error('Manual order create error:', error.message);
+        res.status(500).json({ error: 'Failed to create order' });
+    }
+});
+
 // Healthcheck
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });

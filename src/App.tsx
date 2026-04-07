@@ -115,13 +115,13 @@ function AdminDashboard() {
       const payload = {
         customerName: manualOrderForm.customerName,
         customerEmail: manualOrderForm.customerEmail,
-        shippingAddress: {
-          line1: `${manualOrderForm.street} ${manualOrderForm.houseNumber}`.trim(),
-          city: manualOrderForm.city,
-          postal_code: manualOrderForm.zipCode,
-          country: manualOrderForm.country
-        },
-        items: { size: manualOrderForm.size, color: manualOrderForm.color },
+        street: manualOrderForm.street,
+        houseNumber: manualOrderForm.houseNumber,
+        zipCode: manualOrderForm.zipCode,
+        city: manualOrderForm.city,
+        country: manualOrderForm.country,
+        size: manualOrderForm.size,
+        color: manualOrderForm.color,
         totalAmount: parseFloat(manualOrderForm.totalAmount) * 100, // in cents
         paymentStatus: 'paid'
       };

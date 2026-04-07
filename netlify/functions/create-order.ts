@@ -8,9 +8,9 @@ export const handler: Handler = async (event, context) => {
 
     try {
         const body = JSON.parse(event.body || '{}');
-        const { customerName, customerEmail, shippingAddress, items, totalAmount, paymentStatus } = body;
+        const { customerName, customerEmail, street, houseNumber, zipCode, city, country, size, color, totalAmount, paymentStatus } = body;
 
-        if (!customerName || !items || !totalAmount) {
+        if (!customerName || !size || !color || !totalAmount) {
             return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields' }) };
         }
 
@@ -22,8 +22,12 @@ export const handler: Handler = async (event, context) => {
         const stripeSessionId = `manual-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
         const query = `
-            INSERT INTO orders (stripe_session_id, customer_name, customer_email, shipping_address, items, total_amount, payment_status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO orders (
+                stripe_session_id, customer_name, customer_email, 
+                street, house_number, zip_code, city, country, 
+                color, size, items, total_amount, payment_status, status
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'Offen')
             RETURNING *;
         `;
 
@@ -31,8 +35,14 @@ export const handler: Handler = async (event, context) => {
             stripeSessionId,
             customerName,
             customerEmail || '',
-            JSON.stringify(shippingAddress || {}),
-            JSON.stringify(items),
+            street || '',
+            houseNumber || '',
+            zipCode || '',
+            city || '',
+            country || 'CH',
+            color,
+            size,
+            JSON.stringify({ size, color }),
             totalAmount,
             paymentStatus || 'paid'
         ]);

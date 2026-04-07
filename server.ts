@@ -72,15 +72,25 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
         // In die Neon Datenbank speichern!
         try {
             const query = `
-        INSERT INTO orders (stripe_session_id, customer_name, customer_email, shipping_address, items, total_amount, payment_status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO orders (
+          stripe_session_id, customer_name, customer_email, 
+          street, house_number, zip_code, city, country, 
+          color, size, items, total_amount, payment_status, status
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'Offen')
         ON CONFLICT (stripe_session_id) DO NOTHING;
       `;
             await pool.query(query, [
                 session.id,
                 customerName,
                 customerEmail,
-                JSON.stringify(shippingAddress),
+                addressDetails?.line1 || '',
+                addressDetails?.line2 || '',
+                addressDetails?.postal_code || '',
+                addressDetails?.city || '',
+                addressDetails?.country || '',
+                color,
+                size,
                 JSON.stringify(items),
                 totalAmount,
                 paymentStatus
@@ -166,17 +176,21 @@ app.get('/api/orders', async (req, res) => {
 
 app.post('/api/create-order', async (req, res) => {
     try {
-        const { customerName, customerEmail, shippingAddress, items, totalAmount, paymentStatus } = req.body;
+        const { customerName, customerEmail, street, houseNumber, zipCode, city, country, size, color, totalAmount, paymentStatus } = req.body;
 
-        if (!customerName || !items || !totalAmount) {
+        if (!customerName || !size || !color || !totalAmount) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
         const stripeSessionId = `manual-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
         const query = `
-            INSERT INTO orders (stripe_session_id, customer_name, customer_email, shipping_address, items, total_amount, payment_status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO orders (
+                stripe_session_id, customer_name, customer_email, 
+                street, house_number, zip_code, city, country, 
+                color, size, items, total_amount, payment_status, status
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'Offen')
             RETURNING *;
         `;
 
@@ -184,8 +198,14 @@ app.post('/api/create-order', async (req, res) => {
             stripeSessionId,
             customerName,
             customerEmail || '',
-            JSON.stringify(shippingAddress || {}),
-            JSON.stringify(items),
+            street || '',
+            houseNumber || '',
+            zipCode || '',
+            city || '',
+            country || 'CH',
+            color,
+            size,
+            JSON.stringify({ size, color }),
             totalAmount,
             paymentStatus || 'paid'
         ]);

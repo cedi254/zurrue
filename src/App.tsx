@@ -39,8 +39,17 @@ function AdminDashboard() {
   const [showManualOrder, setShowManualOrder] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [manualOrderForm, setManualOrderForm] = useState({
-    customerName: '', customerEmail: '', street: '', houseNumber: '', zipCode: '', city: '', country: 'CH', size: 'M', color: COLORS[0].name, totalAmount: '51.50'
+    customerName: '',
+    customerEmail: '',
+    street: '',
+    houseNumber: '',
+    zipCode: '',
+    city: '',
+    country: 'CH',
+    items: [] as { color: string; size: string; quantity: number }[],
+    totalAmount: '0.00'
   });
+  const [addingItem, setAddingItem] = useState({ color: COLORS[0].name, size: 'M', quantity: 1 });
 
   const fetchOrders = async () => {
     try {
@@ -77,7 +86,11 @@ function AdminDashboard() {
     const stats: Record<string, number> = {};
     const increment = (colorString: string, quantity: number) => {
       const match = colorString.match(/^(.*?)\s*\(/);
-      const color = match ? match[1].trim() : colorString.trim();
+      let color = match ? match[1].trim() : colorString.trim();
+
+      // Normalize color names
+      if (color === 'Navy-Weiss') color = 'Navy-Weiß';
+
       stats[color] = (stats[color] || 0) + quantity;
     };
 
@@ -108,8 +121,34 @@ function AdminDashboard() {
     window.location.href = '/';
   };
 
+  const handleAddItem = () => {
+    const newItems = [...manualOrderForm.items, { ...addingItem }];
+    const subtotal = newItems.length * 44;
+    const total = subtotal > 0 ? subtotal + 7.5 : 0;
+    setManualOrderForm({
+      ...manualOrderForm,
+      items: newItems,
+      totalAmount: total.toFixed(2)
+    });
+  };
+
+  const handleRemoveItem = (index: number) => {
+    const newItems = manualOrderForm.items.filter((_, i) => i !== index);
+    const subtotal = newItems.length * 44;
+    const total = subtotal > 0 ? subtotal + 7.5 : 0;
+    setManualOrderForm({
+      ...manualOrderForm,
+      items: newItems,
+      totalAmount: total.toFixed(2)
+    });
+  };
+
   const handleCreateManualOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (manualOrderForm.items.length === 0) {
+      alert('Bitte füge mindestens einen Artikel hinzu.');
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
@@ -120,8 +159,7 @@ function AdminDashboard() {
         zipCode: manualOrderForm.zipCode,
         city: manualOrderForm.city,
         country: manualOrderForm.country,
-        size: manualOrderForm.size,
-        color: manualOrderForm.color,
+        items: manualOrderForm.items,
         totalAmount: parseFloat(manualOrderForm.totalAmount) * 100, // in cents
         paymentStatus: 'paid'
       };
@@ -131,7 +169,17 @@ function AdminDashboard() {
         body: JSON.stringify(payload)
       });
       setShowManualOrder(false);
-      setManualOrderForm({ ...manualOrderForm, customerName: '', customerEmail: '', street: '', houseNumber: '', zipCode: '', city: '' });
+      setManualOrderForm({
+        customerName: '',
+        customerEmail: '',
+        street: '',
+        houseNumber: '',
+        zipCode: '',
+        city: '',
+        country: 'CH',
+        items: [],
+        totalAmount: '0.00'
+      });
       fetchOrders();
     } catch (err) {
       console.error(err);
@@ -319,19 +367,45 @@ function AdminDashboard() {
                       <input type="text" className="w-full border rounded-lg px-3 py-2 text-sm" value={manualOrderForm.city} onChange={e => setManualOrderForm({ ...manualOrderForm, city: e.target.value })} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-500 mb-1">Größe</label>
-                      <select className="w-full border rounded-lg px-3 py-2 text-sm" value={manualOrderForm.size} onChange={e => setManualOrderForm({ ...manualOrderForm, size: e.target.value })}>
-                        {SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
+                  {/* Item List */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-neutral-500">Artikel im Warenkorb</label>
+                    {manualOrderForm.items.length === 0 ? (
+                      <p className="text-xs text-neutral-400 italic bg-neutral-50 p-3 rounded-lg border border-dashed">Noch keine Artikel hinzugefügt.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {manualOrderForm.items.map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center bg-neutral-50 p-2 rounded-lg border text-sm">
+                            <span className="font-medium">{item.quantity}x {item.color} ({item.size})</span>
+                            <button type="button" onClick={() => handleRemoveItem(idx)} className="text-red-500 hover:text-red-700">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Item Interface */}
+                  <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200">
+                    <label className="block text-xs font-bold text-neutral-900 uppercase tracking-wider mb-3">Artikel hinzufügen</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-medium text-neutral-500 mb-1 leading-none">Größe</label>
+                        <select className="w-full border rounded-lg px-2 py-1.5 text-xs bg-white" value={addingItem.size} onChange={e => setAddingItem({ ...addingItem, size: e.target.value })}>
+                          {SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-[10px] font-medium text-neutral-500 mb-1 leading-none">Farbe</label>
+                        <select className="w-full border rounded-lg px-2 py-1.5 text-xs bg-white" value={addingItem.color} onChange={e => setAddingItem({ ...addingItem, color: e.target.value })}>
+                          {COLORS.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        </select>
+                      </div>
                     </div>
-                    <div className="col-span-2">
-                      <label className="block text-xs font-medium text-neutral-500 mb-1">Farbe</label>
-                      <select className="w-full border rounded-lg px-3 py-2 text-sm" value={manualOrderForm.color} onChange={e => setManualOrderForm({ ...manualOrderForm, color: e.target.value })}>
-                        {COLORS.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                      </select>
-                    </div>
+                    <button type="button" onClick={handleAddItem} className="w-full mt-3 bg-white border border-neutral-900 text-neutral-900 rounded-lg py-2 text-xs font-bold hover:bg-neutral-900 hover:text-white transition-colors">
+                      + Zum Warenkorb hinzufügen
+                    </button>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-neutral-500 mb-1">Betrag (CHF) *</label>

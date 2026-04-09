@@ -7,10 +7,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { customerName, customerEmail, street, houseNumber, zipCode, city, country, size, color, totalAmount, paymentStatus } = req.body;
+        const { customerName, customerEmail, street, houseNumber, zipCode, city, country, size, color, items, totalAmount, paymentStatus } = req.body;
 
-        if (!customerName || !size || !color || !totalAmount) {
+        if (!customerName || !totalAmount) {
             return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        let finalSize = size || 'M';
+        let finalColor = color || 'Navy-Weiß';
+        let finalItemsJson = JSON.stringify({ size: finalSize, color: finalColor });
+
+        if (items && Array.isArray(items) && items.length > 0) {
+            const totalQuantity = items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0);
+            const itemsSummary = items.map((i: any) => {
+                let c = i.color;
+                if (c === 'Navy-Weiss') c = 'Navy-Weiß';
+                return `${i.quantity || 1}x ${c} (${i.size})`;
+            }).join(', ');
+
+            if (items.length === 1 && totalQuantity === 1) {
+                finalColor = items[0].color;
+                if (finalColor === 'Navy-Weiss') finalColor = 'Navy-Weiß';
+                finalSize = items[0].size;
+            } else {
+                finalColor = 'Multi-Item';
+                finalSize = `${totalQuantity} Hosen`;
+            }
+
+            finalItemsJson = JSON.stringify({
+                itemsCount: totalQuantity.toString(),
+                itemsSummary: itemsSummary.substring(0, 500),
+                color: finalColor,
+                size: finalSize
+            });
+        } else {
+            // Normalize single item color if provided
+            if (finalColor === 'Navy-Weiss') finalColor = 'Navy-Weiß';
+            finalItemsJson = JSON.stringify({ size: finalSize, color: finalColor });
         }
 
         const pool = new Pool({
@@ -39,9 +72,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             zipCode || '',
             city || '',
             country || 'CH',
-            color,
-            size,
-            JSON.stringify({ size, color }),
+            finalColor,
+            finalSize,
+            finalItemsJson,
             totalAmount,
             paymentStatus || 'paid'
         ]);

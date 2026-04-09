@@ -63,8 +63,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const itemsSummary = session.metadata?.itemsSummary || 'Unbekannt';
 
         // Bevorzugt die expliziten Felder nutzen, sonst die Zusammenfassung
-        const color = session.metadata?.color || (itemsCount === '1' ? itemsSummary : 'Multi-Item');
-        const size = session.metadata?.size || (itemsCount === '1' ? 'Standard' : `${itemsCount} Hosen`);
+        let color = session.metadata?.color || (itemsCount === '1' ? itemsSummary : 'Multi-Item');
+        let size = session.metadata?.size || (itemsCount === '1' ? 'Standard' : `${itemsCount} Hosen`);
+
+        // Normalize color names
+        if (color === 'Navy-Weiss') color = 'Navy-Weiß';
 
         const totalAmount = session.amount_total;
         const paymentStatus = session.payment_status;

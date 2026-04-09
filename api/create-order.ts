@@ -15,14 +15,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         let finalSize = size || 'M';
         let finalColor = color || 'Navy-Weiß';
-        let finalItemsJson = JSON.stringify({ size: finalSize, color: finalColor });
+        let finalItems: any = { size: finalSize, color: finalColor };
 
         if (items && Array.isArray(items) && items.length > 0) {
             const totalQuantity = items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0);
             const itemsSummary = items.map((i: any) => {
                 let c = i.color;
                 if (c === 'Navy-Weiss') c = 'Navy-Weiß';
-                return `${i.quantity || 1}x ${c} (${i.size})`;
+                // Note: We match the format seen in existing orders (Color (Size)) 
+                // but keep '1x' if we want to be explicit. The dashboard handles both.
+                // Using 'Color (Size)' for exact match with Stripe metadata style.
+                return `${c} (${i.size})`;
             }).join(', ');
 
             if (items.length === 1 && totalQuantity === 1) {
@@ -34,16 +37,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 finalSize = `${totalQuantity} Hosen`;
             }
 
-            finalItemsJson = JSON.stringify({
+            finalItems = {
                 itemsCount: totalQuantity.toString(),
                 itemsSummary: itemsSummary.substring(0, 500),
                 color: finalColor,
                 size: finalSize
-            });
+            };
         } else {
             // Normalize single item color if provided
             if (finalColor === 'Navy-Weiss') finalColor = 'Navy-Weiß';
-            finalItemsJson = JSON.stringify({ size: finalSize, color: finalColor });
+            finalItems = { size: finalSize, color: finalColor };
         }
 
         const pool = new Pool({
@@ -74,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             country || 'CH',
             finalColor,
             finalSize,
-            finalItemsJson,
+            finalItems, // Pass object directly
             totalAmount,
             paymentStatus || 'paid'
         ]);

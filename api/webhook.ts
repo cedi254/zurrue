@@ -100,7 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 country,
                 color,
                 size,
-                JSON.stringify(items),
+                items, // Pass object directly
                 totalAmount,
                 paymentStatus
             ]);

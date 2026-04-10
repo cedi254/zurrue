@@ -83,15 +83,24 @@ function AdminDashboard() {
   };
 
   const calculateColorStats = () => {
-    const stats: Record<string, number> = {};
-    const increment = (colorString: string, quantity: number) => {
-      const match = colorString.match(/^(.*?)\s*\(/);
-      let color = match ? match[1].trim() : colorString.trim();
+    const stats: Record<string, Record<string, number>> = {};
+    const increment = (colorString: string, sizeString: string | undefined, quantity: number) => {
+      // Extract color if it's passed as "Color (Size)"
+      const colorMatch = colorString.match(/^(.*?)\s*\(/);
+      let color = colorMatch ? colorMatch[1].trim() : colorString.trim();
 
       // Normalize color names
       if (color === 'Navy-Weiss') color = 'Navy-Weiß';
 
-      stats[color] = (stats[color] || 0) + quantity;
+      // Extract size if it's passed as "Color (Size)" and sizeString is undefined
+      let size = sizeString;
+      if (!size) {
+        const sizeMatch = colorString.match(/\((.*?)\)/);
+        size = sizeMatch ? sizeMatch[1].trim() : 'M';
+      }
+
+      if (!stats[color]) stats[color] = {};
+      stats[color][size] = (stats[color][size] || 0) + quantity;
     };
 
     orders.forEach(order => {
@@ -101,15 +110,16 @@ function AdminDashboard() {
         parts.forEach((p: string) => {
           const match = p.match(/^(\d+)x\s+(.*)/);
           if (match) {
-            increment(match[2], parseInt(match[1], 10));
+            increment(match[2], undefined, parseInt(match[1], 10));
           } else {
-            increment(p, 1);
+            increment(p, undefined, 1);
           }
         });
       } else {
         const col = order.color;
+        const size = order.size;
         if (col && col !== 'Multi-Item') {
-          increment(col, 1);
+          increment(col, size, 1);
         }
       }
     });
@@ -227,15 +237,34 @@ function AdminDashboard() {
                   <div className="flex justify-between items-center text-sm border-b border-neutral-100 pb-3 mb-1">
                     <span className="font-bold text-neutral-900">Total Hosen</span>
                     <span className="font-bold text-neutral-900 bg-neutral-900 text-white px-2 py-0.5 rounded-full text-xs">
-                      {Object.values(calculateColorStats()).reduce((a, b) => a + b, 0)}
+                      {Object.values(calculateColorStats()).reduce((acc, sizes) =>
+                        acc + Object.values(sizes).reduce((sum, count) => sum + count, 0), 0
+                      )}
                     </span>
                   </div>
-                  {Object.entries(calculateColorStats()).sort((a, b) => b[1] - a[1]).map(([color, count]) => (
-                    <div key={color} className="flex justify-between items-center text-sm">
-                      <span className="text-neutral-600 font-medium">{color}</span>
-                      <span className="font-bold bg-neutral-100 px-2 py-0.5 rounded-full text-xs text-neutral-700">{count}</span>
-                    </div>
-                  ))}
+                  {Object.entries(calculateColorStats())
+                    .sort((a, b) =>
+                      Object.values(b[1]).reduce((s, c) => s + c, 0) -
+                      Object.values(a[1]).reduce((s, c) => s + c, 0)
+                    )
+                    .map(([color, sizes]) => (
+                      <div key={color} className="flex flex-col gap-1.5 border-b border-neutral-50 pb-2 mb-1 last:border-0">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-neutral-900 font-bold">{color}</span>
+                          <span className="font-bold bg-neutral-200 px-2 py-0.5 rounded-full text-[10px] text-neutral-800">
+                            {Object.values(sizes).reduce((s, c) => s + c, 0)}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(sizes).map(([size, count]) => (
+                            <div key={size} className="flex items-center gap-1 bg-neutral-50 border border-neutral-100 px-1.5 py-0.5 rounded text-[10px]">
+                              <span className="text-neutral-500">{size}:</span>
+                              <span className="font-bold text-neutral-900">{count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   {Object.keys(calculateColorStats()).length === 0 && (
                     <p className="text-xs text-neutral-400 italic">Noch keine bezahlten Bestellungen erfasst.</p>
                   )}
